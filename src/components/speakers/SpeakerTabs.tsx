@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { CommunityDayCfp } from "@/components/sessionize/CommunityDayCfp";
 import { SpeakerBenefits } from "@/components/speakers/SpeakerBenefits";
 import { SpeakerNotify } from "@/components/speakers/CFPForm";
+import { SpeakerCarousel } from "@/components/speakers/SpeakerCarousel";
 import type { FormInfo } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -110,6 +111,8 @@ export function SpeakerTabs({
                 </div>
               </div>
             </section>
+
+            <SpeakerCarousel />
           </div>
         ) : (
           <div
