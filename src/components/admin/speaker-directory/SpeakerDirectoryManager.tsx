@@ -5,7 +5,6 @@ import {
   Mic,
   Plus,
   Search,
-  Filter,
   ArrowUp,
   ArrowDown,
   Pencil,
@@ -15,7 +14,10 @@ import {
   ExternalLink,
   Loader2,
   RefreshCw,
-  Users,
+  Calendar,
+  Sparkles,
+  Layers,
+  Tag,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -56,7 +58,109 @@ import type {
 } from "@/lib/types";
 import { COMMUNITY_DAY_EVENT_SLUG } from "@/components/sponsor/communityDayConfig";
 
+export type EventCategoryType = "Conference" | "Monthly Meetup" | "Workshop" | "Other";
+
+export interface EventOption {
+  slug: string;
+  name: string;
+  category: EventCategoryType;
+  badge?: string;
+}
+
+export const KNOWN_EVENTS: EventOption[] = [
+  // Conferences
+  {
+    slug: "community-day-2026",
+    name: "AWS Community Day Jakarta 2026",
+    category: "Conference",
+    badge: "Oct 2026",
+  },
+  {
+    slug: "community-day-2025",
+    name: "AWS Community Day Jakarta 2025",
+    category: "Conference",
+    badge: "Past",
+  },
+  {
+    slug: "reinvent-recap-2025",
+    name: "AWS re:Invent 2025 Recap",
+    category: "Conference",
+  },
+
+  // Monthly Meetups
+  {
+    slug: "monthly-meetup",
+    name: "Monthly Meetup (Global / General)",
+    category: "Monthly Meetup",
+    badge: "Global",
+  },
+  {
+    slug: "aws-ug-jakarta-redis-october-2026",
+    name: "October 2026 Meetup (with Redis)",
+    category: "Monthly Meetup",
+    badge: "Oct 2026",
+  },
+  {
+    slug: "monthly-meetup-july-2026",
+    name: "July 2026 Meetup",
+    category: "Monthly Meetup",
+    badge: "Jul 2026",
+  },
+  {
+    slug: "monthly-meetup-june-2026",
+    name: "June 2026 Meetup",
+    category: "Monthly Meetup",
+    badge: "Jun 2026",
+  },
+  {
+    slug: "monthly-meetup-april-2026",
+    name: "April 2026 Meetup",
+    category: "Monthly Meetup",
+    badge: "Apr 2026",
+  },
+  {
+    slug: "kiro-night-bukber",
+    name: "Kiro Night Meetup",
+    category: "Monthly Meetup",
+  },
+
+  // Workshops
+  {
+    slug: "voice-ai-agents-workshop-may-2026",
+    name: "Voice AI Agents Workshop",
+    category: "Workshop",
+    badge: "May 2026",
+  },
+];
+
+export function getEventCategoryMeta(slug: string): { label: string; category: EventCategoryType; color: string } {
+  const found = KNOWN_EVENTS.find((e) => e.slug === slug);
+  if (found) {
+    if (found.category === "Conference") {
+      return { label: found.name, category: "Conference", color: "bg-orange-500/10 text-orange-400 border-orange-500/30" };
+    }
+    if (found.category === "Monthly Meetup") {
+      return { label: found.name, category: "Monthly Meetup", color: "bg-sky-500/10 text-sky-400 border-sky-500/30" };
+    }
+    if (found.category === "Workshop") {
+      return { label: found.name, category: "Workshop", color: "bg-purple-500/10 text-purple-400 border-purple-500/30" };
+    }
+    return { label: found.name, category: "Other", color: "bg-muted text-muted-foreground border-border/50" };
+  }
+  if (slug.includes("community") || slug.includes("conference") || slug.includes("recap")) {
+    return { label: slug, category: "Conference", color: "bg-orange-500/10 text-orange-400 border-orange-500/30" };
+  }
+  if (slug.includes("monthly") || slug.includes("meetup")) {
+    return { label: slug, category: "Monthly Meetup", color: "bg-sky-500/10 text-sky-400 border-sky-500/30" };
+  }
+  if (slug.includes("workshop")) {
+    return { label: slug, category: "Workshop", color: "bg-purple-500/10 text-purple-400 border-purple-500/30" };
+  }
+  return { label: slug, category: "Other", color: "bg-muted text-muted-foreground border-border/50" };
+}
+
 interface SpeakerFormData {
+  eventSlug: string;
   name: string;
   role: string;
   company: string;
@@ -70,6 +174,7 @@ interface SpeakerFormData {
 }
 
 const INITIAL_FORM: SpeakerFormData = {
+  eventSlug: COMMUNITY_DAY_EVENT_SLUG,
   name: "",
   role: "",
   company: "",
@@ -83,12 +188,16 @@ const INITIAL_FORM: SpeakerFormData = {
 };
 
 export function SpeakerDirectoryManager() {
-  const [eventSlug] = useState(COMMUNITY_DAY_EVENT_SLUG);
+  // Category & Event Filter
+  const [selectedCategory, setSelectedCategory] = useState<"ALL" | EventCategoryType>("ALL");
+  const [selectedEventSlug, setSelectedEventSlug] = useState<string>("ALL");
+  const [customEventInput, setCustomEventInput] = useState<string>("");
+
   const [speakers, setSpeakers] = useState<EventSpeaker[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
+  // Search & Status Filter
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
 
@@ -98,38 +207,55 @@ export function SpeakerDirectoryManager() {
   const [formData, setFormData] = useState<SpeakerFormData>(INITIAL_FORM);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [formCustomSlug, setFormCustomSlug] = useState(false);
 
   // Delete Dialog state
   const [deleteTarget, setDeleteTarget] = useState<EventSpeaker | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Determine active query slug for API
+  const activeQuerySlug = selectedEventSlug === "CUSTOM" ? customEventInput.trim() : selectedEventSlug;
 
   // Load speakers
   const loadSpeakers = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchAdminSpeakers(eventSlug);
+      const res = await fetchAdminSpeakers(activeQuerySlug === "ALL" ? undefined : activeQuerySlug);
       setSpeakers(res.speakers || []);
     } catch (err: any) {
       setError(err?.message || "Failed to load speakers directory");
     } finally {
       setLoading(false);
     }
-  }, [eventSlug]);
+  }, [activeQuerySlug]);
 
   useEffect(() => {
     loadSpeakers();
   }, [loadSpeakers]);
 
-  // Filtered speakers
+  // Filtered events for the dropdown based on selectedCategory tab
+  const availableEvents = useMemo(() => {
+    if (selectedCategory === "ALL") return KNOWN_EVENTS;
+    return KNOWN_EVENTS.filter((e) => e.category === selectedCategory);
+  }, [selectedCategory]);
+
+  // Filtered speakers based on Category, Search query, and Status
   const filteredSpeakers = useMemo(() => {
     return speakers.filter((s) => {
+      // Category filter (when selectedEventSlug is "ALL")
+      if (selectedCategory !== "ALL") {
+        const meta = getEventCategoryMeta(s.eventSlug);
+        if (meta.category !== selectedCategory) return false;
+      }
+
       const q = searchQuery.toLowerCase().trim();
       const matchSearch =
         !q ||
         s.name.toLowerCase().includes(q) ||
         s.talkTitle.toLowerCase().includes(q) ||
         s.role.toLowerCase().includes(q) ||
+        s.eventSlug.toLowerCase().includes(q) ||
         (s.company && s.company.toLowerCase().includes(q)) ||
         (s.talkFormat && s.talkFormat.toLowerCase().includes(q));
 
@@ -140,20 +266,28 @@ export function SpeakerDirectoryManager() {
 
       return matchSearch && matchStatus;
     });
-  }, [speakers, searchQuery, statusFilter]);
+  }, [speakers, selectedCategory, searchQuery, statusFilter]);
 
   // Derived stats
   const stats = useMemo(() => {
-    const total = speakers.length;
-    const active = speakers.filter((s) => s.isActive).length;
+    const total = filteredSpeakers.length;
+    const active = filteredSpeakers.filter((s) => s.isActive).length;
     const inactive = total - active;
     return { total, active, inactive };
-  }, [speakers]);
+  }, [filteredSpeakers]);
 
   // Open Add Dialog
   const handleOpenAdd = () => {
     setEditingSpeaker(null);
-    setFormData(INITIAL_FORM);
+    const defaultSlug =
+      activeQuerySlug && activeQuerySlug !== "ALL" && activeQuerySlug !== "CUSTOM"
+        ? activeQuerySlug
+        : COMMUNITY_DAY_EVENT_SLUG;
+    setFormData({
+      ...INITIAL_FORM,
+      eventSlug: defaultSlug,
+    });
+    setFormCustomSlug(false);
     setFormError(null);
     setDialogOpen(true);
   };
@@ -161,7 +295,10 @@ export function SpeakerDirectoryManager() {
   // Open Edit Dialog
   const handleOpenEdit = (speaker: EventSpeaker) => {
     setEditingSpeaker(speaker);
+    const isKnown = KNOWN_EVENTS.some((e) => e.slug === speaker.eventSlug);
+    setFormCustomSlug(!isKnown);
     setFormData({
+      eventSlug: speaker.eventSlug,
       name: speaker.name,
       role: speaker.role,
       company: speaker.company || "",
@@ -180,6 +317,11 @@ export function SpeakerDirectoryManager() {
   // Submit Form (Add or Edit)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const targetSlug = formData.eventSlug.trim();
+    if (!targetSlug) {
+      setFormError("Please select or enter an Event Slug.");
+      return;
+    }
     if (!formData.name.trim() || !formData.role.trim() || !formData.talkTitle.trim() || !formData.photoUrl.trim()) {
       setFormError("Please fill out Speaker Name, Role, Photo URL, and Talk Title.");
       return;
@@ -201,9 +343,9 @@ export function SpeakerDirectoryManager() {
           socialUrl: formData.socialUrl.trim() || null,
           isActive: formData.isActive,
         };
-        const updated = await updateAdminSpeaker(eventSlug, editingSpeaker.id, payload);
+        const updated = await updateAdminSpeaker(editingSpeaker.eventSlug, editingSpeaker.id, payload);
         setSpeakers((prev) =>
-          prev.map((s) => (s.id === editingSpeaker.id ? updated : s))
+          prev.map((s) => (s.id === editingSpeaker.id && s.eventSlug === editingSpeaker.eventSlug ? updated : s))
         );
       } else {
         const payload: EventSpeakerCreate = {
@@ -218,7 +360,7 @@ export function SpeakerDirectoryManager() {
           socialUrl: formData.socialUrl.trim() || null,
           isActive: formData.isActive,
         };
-        const created = await createAdminSpeaker(eventSlug, payload);
+        const created = await createAdminSpeaker(targetSlug, payload);
         setSpeakers((prev) => [...prev, created]);
       }
       setDialogOpen(false);
@@ -234,10 +376,10 @@ export function SpeakerDirectoryManager() {
     const nextState = !speaker.isActive;
     // Optimistic update
     setSpeakers((prev) =>
-      prev.map((s) => (s.id === speaker.id ? { ...s, isActive: nextState } : s))
+      prev.map((s) => (s.id === speaker.id && s.eventSlug === speaker.eventSlug ? { ...s, isActive: nextState } : s))
     );
     try {
-      await updateAdminSpeaker(eventSlug, speaker.id, {
+      await updateAdminSpeaker(speaker.eventSlug, speaker.id, {
         name: speaker.name,
         role: speaker.role,
         company: speaker.company,
@@ -252,7 +394,7 @@ export function SpeakerDirectoryManager() {
     } catch (err: any) {
       // Revert on error
       setSpeakers((prev) =>
-        prev.map((s) => (s.id === speaker.id ? { ...s, isActive: !nextState } : s))
+        prev.map((s) => (s.id === speaker.id && s.eventSlug === speaker.eventSlug ? { ...s, isActive: !nextState } : s))
       );
       alert(err?.message || "Failed to update speaker status");
     }
@@ -263,8 +405,8 @@ export function SpeakerDirectoryManager() {
     if (!deleteTarget) return;
     setIsDeleting(true);
     try {
-      const res = await deleteAdminSpeaker(eventSlug, deleteTarget.id);
-      setSpeakers(res.speakers || []);
+      await deleteAdminSpeaker(deleteTarget.eventSlug, deleteTarget.id);
+      setSpeakers((prev) => prev.filter((s) => !(s.id === deleteTarget.id && s.eventSlug === deleteTarget.eventSlug)));
       setDeleteTarget(null);
     } catch (err: any) {
       alert(err?.message || "Failed to delete speaker");
@@ -273,17 +415,18 @@ export function SpeakerDirectoryManager() {
     }
   };
 
-  // Reorder up/down
+  // Reorder up/down (Available when filtered to a specific event)
+  const isSpecificEvent = activeQuerySlug !== "ALL" && activeQuerySlug !== "CUSTOM";
   const handleMoveOrder = async (index: number, direction: "up" | "down") => {
+    if (!isSpecificEvent) return;
     const targetIndex = direction === "up" ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= speakers.length) return;
+    if (targetIndex < 0 || targetIndex >= filteredSpeakers.length) return;
 
-    const newSpeakers = [...speakers];
+    const newSpeakers = [...filteredSpeakers];
     const temp = newSpeakers[index];
     newSpeakers[index] = newSpeakers[targetIndex];
     newSpeakers[targetIndex] = temp;
 
-    // Optimistically update
     setSpeakers(newSpeakers);
 
     const items: EventSpeakerOrderItem[] = newSpeakers.map((s, idx) => ({
@@ -292,63 +435,163 @@ export function SpeakerDirectoryManager() {
     }));
 
     try {
-      await reorderAdminSpeakers(eventSlug, items);
+      await reorderAdminSpeakers(activeQuerySlug, items);
     } catch (err: any) {
-      // Revert on error
-      setSpeakers(speakers);
+      setSpeakers(filteredSpeakers);
       alert(err?.message || "Failed to save speaker order");
     }
   };
 
   return (
     <div className="space-y-6">
+      {/* Category Tabs: All, Conferences, Monthly Meetups, Workshops */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-border/60">
+        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
+          <Button
+            type="button"
+            size="sm"
+            variant={selectedCategory === "ALL" ? "default" : "outline"}
+            onClick={() => {
+              setSelectedCategory("ALL");
+              setSelectedEventSlug("ALL");
+            }}
+            className="rounded-full text-xs font-semibold gap-1.5 cursor-pointer"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            <span>All Categories</span>
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            variant={selectedCategory === "Conference" ? "default" : "outline"}
+            onClick={() => {
+              setSelectedCategory("Conference");
+              setSelectedEventSlug("community-day-2026");
+            }}
+            className="rounded-full text-xs font-semibold gap-1.5 cursor-pointer"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-orange-400" />
+            <span>Community Day / Conferences</span>
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            variant={selectedCategory === "Monthly Meetup" ? "default" : "outline"}
+            onClick={() => {
+              setSelectedCategory("Monthly Meetup");
+              setSelectedEventSlug("monthly-meetup");
+            }}
+            className="rounded-full text-xs font-semibold gap-1.5 cursor-pointer"
+          >
+            <Calendar className="h-3.5 w-3.5 text-sky-400" />
+            <span>Monthly Meetups</span>
+          </Button>
+
+          <Button
+            type="button"
+            size="sm"
+            variant={selectedCategory === "Workshop" ? "default" : "outline"}
+            onClick={() => {
+              setSelectedCategory("Workshop");
+              setSelectedEventSlug("voice-ai-agents-workshop-may-2026");
+            }}
+            className="rounded-full text-xs font-semibold gap-1.5 cursor-pointer"
+          >
+            <Tag className="h-3.5 w-3.5 text-purple-400" />
+            <span>Workshops</span>
+          </Button>
+        </div>
+
+        {/* Event Selector Dropdown within category */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground shrink-0 hidden md:inline">
+            Event Scope:
+          </span>
+          <Select
+            value={selectedEventSlug}
+            onValueChange={(val) => {
+              setSelectedEventSlug(val);
+              if (val !== "CUSTOM") setCustomEventInput("");
+            }}
+          >
+            <SelectTrigger className="w-[240px] sm:w-[280px] bg-background text-xs font-semibold">
+              <SelectValue placeholder="Select Event" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">🌐 All Events in Category</SelectItem>
+              {availableEvents.map((evt) => (
+                <SelectItem key={evt.slug} value={evt.slug}>
+                  {evt.name} {evt.badge && `(${evt.badge})`}
+                </SelectItem>
+              ))}
+              <SelectItem value="CUSTOM">✏️ Custom Event Slug...</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Custom Slug Input if CUSTOM chosen */}
+      {selectedEventSlug === "CUSTOM" && (
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/40 border border-border">
+          <Label htmlFor="custom-slug" className="text-xs font-semibold shrink-0">
+            Enter Event Slug:
+          </Label>
+          <Input
+            id="custom-slug"
+            placeholder="e.g. monthly-meetup-november-2026"
+            value={customEventInput}
+            onChange={(e) => setCustomEventInput(e.target.value)}
+            className="h-8 text-xs max-w-sm bg-background"
+          />
+          <Button size="sm" variant="secondary" onClick={loadSpeakers} className="h-8 text-xs cursor-pointer">
+            Filter Slug
+          </Button>
+        </div>
+      )}
+
       {/* Header Overview Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Total Speakers
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>Total Speakers</span>
+              <Mic className="h-4 w-4 text-primary opacity-70" />
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold text-foreground">
-                {stats.total}
-              </span>
-              <Mic className="h-5 w-5 text-primary opacity-70" />
-            </div>
+            <span className="text-2xl font-bold text-foreground">
+              {stats.total}
+            </span>
           </CardContent>
         </Card>
 
         <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Active / Visible
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>Active / Visible</span>
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 opacity-70" />
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold text-emerald-500">
-                {stats.active}
-              </span>
-              <CheckCircle2 className="h-5 w-5 text-emerald-500 opacity-70" />
-            </div>
+            <span className="text-2xl font-bold text-emerald-500">
+              {stats.active}
+            </span>
           </CardContent>
         </Card>
 
         <Card className="border-border/80 bg-card/60 backdrop-blur-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              Hidden / Draft
+            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
+              <span>Hidden / Draft</span>
+              <XCircle className="h-4 w-4 text-muted-foreground opacity-70" />
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold text-muted-foreground">
-                {stats.inactive}
-              </span>
-              <XCircle className="h-5 w-5 text-muted-foreground opacity-70" />
-            </div>
+            <span className="text-2xl font-bold text-muted-foreground">
+              {stats.inactive}
+            </span>
           </CardContent>
         </Card>
       </div>
@@ -359,7 +602,7 @@ export function SpeakerDirectoryManager() {
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search speaker, talk title, role..."
+              placeholder="Search speaker, talk title, role, event slug..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 bg-background"
@@ -423,21 +666,21 @@ export function SpeakerDirectoryManager() {
           <Mic className="h-10 w-10 text-muted-foreground mx-auto" />
           <p className="font-semibold text-foreground">No speakers found</p>
           <p className="text-sm text-muted-foreground">
-            {searchQuery || statusFilter !== "ALL"
+            {searchQuery || statusFilter !== "ALL" || selectedCategory !== "ALL"
               ? "No speakers match the current filter criteria."
-              : "No speakers added yet. Click 'Add Speaker' to get started."}
+              : "No speakers configured for this event yet. Click 'Add Speaker' to get started."}
           </p>
         </div>
       ) : (
         <div className="bg-card border border-border/80 rounded-2xl overflow-hidden shadow-sm divide-y divide-border/60">
           {filteredSpeakers.map((speaker, index) => {
-            const rawIndex = speakers.findIndex((s) => s.id === speaker.id);
-            const canMoveUp = rawIndex > 0;
-            const canMoveDown = rawIndex < speakers.length - 1;
+            const canMoveUp = isSpecificEvent && index > 0;
+            const canMoveDown = isSpecificEvent && index < filteredSpeakers.length - 1;
+            const meta = getEventCategoryMeta(speaker.eventSlug);
 
             return (
               <div
-                key={speaker.id}
+                key={`${speaker.eventSlug}-${speaker.id}`}
                 className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/20 transition-colors"
               >
                 {/* Speaker Info, Topic Banner & Avatar */}
@@ -465,6 +708,16 @@ export function SpeakerDirectoryManager() {
                       <h4 className="font-bold text-foreground text-base truncate">
                         {speaker.name}
                       </h4>
+
+                      {/* Event Category Badge */}
+                      <Badge
+                        variant="secondary"
+                        className={cn("text-[11px] px-2 py-0 border font-semibold", meta.color)}
+                        title={`Event Slug: ${speaker.eventSlug}`}
+                      >
+                        {meta.category}: {speaker.eventSlug}
+                      </Badge>
+
                       {speaker.talkFormat && (
                         <Badge
                           variant="secondary"
@@ -478,49 +731,63 @@ export function SpeakerDirectoryManager() {
                           Active
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-[11px] px-2 py-0 text-muted-foreground">
+                        <Badge variant="outline" className="text-[11px] px-2 py-0 text-muted-foreground border-border">
                           Hidden
                         </Badge>
                       )}
                     </div>
 
-                    <p className="text-xs text-muted-foreground truncate">
-                      {speaker.role} {speaker.company ? `· ${speaker.company}` : ""}
+                    <p className="text-xs text-muted-foreground">
+                      {speaker.role} {speaker.company ? `• ${speaker.company}` : ""}
                     </p>
 
-                    <p className="text-xs font-semibold text-foreground truncate max-w-xl">
-                      🎙️ {speaker.talkTitle}
+                    <p className="text-sm font-medium text-foreground line-clamp-1">
+                      "{speaker.talkTitle}"
                     </p>
+
+                    {speaker.socialUrl && (
+                      <a
+                        href={speaker.socialUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs text-primary hover:underline pt-0.5"
+                      >
+                        <span>Profile Link</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
                   </div>
                 </div>
 
-                {/* Actions: Reorder, Active Toggle, Edit, Delete */}
-                <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
-                  {/* Reorder Buttons */}
-                  <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-1 mr-2 border border-border/50">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      disabled={!canMoveUp}
-                      onClick={() => handleMoveOrder(rawIndex, "up")}
-                      className="h-7 w-7 rounded cursor-pointer"
-                      title="Move up"
-                    >
-                      <ArrowUp className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      disabled={!canMoveDown}
-                      onClick={() => handleMoveOrder(rawIndex, "down")}
-                      className="h-7 w-7 rounded cursor-pointer"
-                      title="Move down"
-                    >
-                      <ArrowDown className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                {/* Actions: Reorder, Active Switch, Edit, Delete */}
+                <div className="flex items-center justify-end gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0">
+                  {/* Reorder Buttons (enabled when scoped to specific event) */}
+                  {isSpecificEvent && (
+                    <div className="flex items-center gap-1 mr-2">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        disabled={!canMoveUp}
+                        onClick={() => handleMoveOrder(index, "up")}
+                        title="Move Up"
+                        className="h-8 w-8 cursor-pointer disabled:opacity-30"
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        disabled={!canMoveDown}
+                        onClick={() => handleMoveOrder(index, "down")}
+                        title="Move Down"
+                        className="h-8 w-8 cursor-pointer disabled:opacity-30"
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Active Toggle */}
                   <div className="flex items-center gap-2 mr-2">
@@ -582,7 +849,7 @@ export function SpeakerDirectoryManager() {
               {editingSpeaker ? "Edit Speaker" : "Add New Speaker"}
             </DialogTitle>
             <DialogDescription>
-              Configure the featured speaker details, session topic, and public visibility.
+              Configure speaker credentials, talk format, event category, and public visibility.
             </DialogDescription>
           </DialogHeader>
 
@@ -592,6 +859,62 @@ export function SpeakerDirectoryManager() {
                 {formError}
               </div>
             )}
+
+            {/* Event Category & Slug Assignment */}
+            <div className="p-3.5 rounded-xl border border-border/80 bg-muted/30 space-y-2">
+              <Label htmlFor="sp-event" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Target Event & Category *
+              </Label>
+              {!formCustomSlug ? (
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={formData.eventSlug}
+                    onValueChange={(val) => {
+                      if (val === "CUSTOM") {
+                        setFormCustomSlug(true);
+                      } else {
+                        setFormData({ ...formData, eventSlug: val });
+                      }
+                    }}
+                  >
+                    <SelectTrigger id="sp-event" className="bg-background">
+                      <SelectValue placeholder="Choose Event" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="community-day-2026">🌟 AWS Community Day Jakarta 2026</SelectItem>
+                      <SelectItem value="monthly-meetup">📅 Monthly Meetups (General / Upcoming)</SelectItem>
+                      <SelectItem value="aws-ug-jakarta-redis-october-2026">📅 October 2026 Meetup (with Redis)</SelectItem>
+                      <SelectItem value="monthly-meetup-july-2026">📅 July 2026 Meetup</SelectItem>
+                      <SelectItem value="monthly-meetup-june-2026">📅 June 2026 Meetup</SelectItem>
+                      <SelectItem value="monthly-meetup-april-2026">📅 April 2026 Meetup</SelectItem>
+                      <SelectItem value="voice-ai-agents-workshop-may-2026">🛠️ Voice AI Agents Workshop</SelectItem>
+                      <SelectItem value="CUSTOM">✏️ Custom Event Slug...</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="e.g. monthly-meetup-november-2026"
+                      value={formData.eventSlug}
+                      onChange={(e) => setFormData({ ...formData, eventSlug: e.target.value })}
+                      required
+                      className="bg-background"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormCustomSlug(false)}
+                      className="text-xs shrink-0 cursor-pointer"
+                    >
+                      Use Presets
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
@@ -619,7 +942,7 @@ export function SpeakerDirectoryManager() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="sp-company">Company</Label>
+                <Label htmlFor="sp-company">Company / Organization</Label>
                 <Input
                   id="sp-company"
                   placeholder="e.g. AWS"
@@ -641,10 +964,10 @@ export function SpeakerDirectoryManager() {
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="sp-topic-img">Topic / Session Banner Image URL</Label>
+              <Label htmlFor="sp-topic-img">Topic / Session Cover Banner URL</Label>
               <Input
                 id="sp-topic-img"
-                placeholder="https://... (16:9 cover banner image for session topic)"
+                placeholder="https://... (16:9 topic banner image)"
                 value={formData.topicImageUrl}
                 onChange={(e) => setFormData({ ...formData, topicImageUrl: e.target.value })}
               />
@@ -655,7 +978,7 @@ export function SpeakerDirectoryManager() {
                 <Label htmlFor="sp-talk">Talk / Session Title *</Label>
                 <Input
                   id="sp-talk"
-                  placeholder="e.g. Keynote: The Future of Cloud & Generative AI"
+                  placeholder="e.g. Architecting Scalable Serverless Applications"
                   value={formData.talkTitle}
                   onChange={(e) => setFormData({ ...formData, talkTitle: e.target.value })}
                   required
@@ -674,6 +997,7 @@ export function SpeakerDirectoryManager() {
                   <SelectContent>
                     <SelectItem value="Keynote">Keynote</SelectItem>
                     <SelectItem value="Technical Track">Technical Track</SelectItem>
+                    <SelectItem value="Deep Dive">Deep Dive</SelectItem>
                     <SelectItem value="Lightning Talk">Lightning Talk</SelectItem>
                     <SelectItem value="Workshop">Workshop</SelectItem>
                     <SelectItem value="Panel Discussion">Panel Discussion</SelectItem>
@@ -711,7 +1035,7 @@ export function SpeakerDirectoryManager() {
                   onCheckedChange={(checked) => setFormData({ ...formData, isActive: Boolean(checked) })}
                 />
                 <Label htmlFor="sp-active" className="cursor-pointer text-xs font-medium">
-                  Visible to Public
+                  Visible to Public (Active)
                 </Label>
               </div>
             </div>
@@ -722,21 +1046,22 @@ export function SpeakerDirectoryManager() {
                 variant="outline"
                 onClick={() => setDialogOpen(false)}
                 disabled={isSubmitting}
+                className="cursor-pointer"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isSubmitting}
-                className="bg-primary text-primary-foreground font-semibold"
+                className="cursor-pointer bg-primary text-primary-foreground font-semibold"
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving…
                   </>
                 ) : editingSpeaker ? (
-                  "Update Speaker"
+                  "Save Changes"
                 ) : (
                   "Create Speaker"
                 )}
@@ -746,21 +1071,24 @@ export function SpeakerDirectoryManager() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Modal */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Delete Speaker</DialogTitle>
             <DialogDescription>
-              Are you sure you want to remove <span className="font-semibold text-foreground">{deleteTarget?.name}</span> from the speaker directory? This action cannot be undone.
+              Are you sure you want to remove{" "}
+              <strong className="text-foreground">{deleteTarget?.name}</strong> from{" "}
+              <strong className="text-foreground">{deleteTarget?.eventSlug}</strong>? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0 pt-4">
+          <DialogFooter className="pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => setDeleteTarget(null)}
               disabled={isDeleting}
+              className="cursor-pointer"
             >
               Cancel
             </Button>
@@ -769,8 +1097,9 @@ export function SpeakerDirectoryManager() {
               variant="destructive"
               onClick={handleDeleteConfirm}
               disabled={isDeleting}
+              className="cursor-pointer"
             >
-              {isDeleting ? "Deleting..." : "Delete Speaker"}
+              {isDeleting ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -778,3 +1107,5 @@ export function SpeakerDirectoryManager() {
     </div>
   );
 }
+
+(SpeakerDirectoryManager as unknown as Record<symbol, string>)[Symbol.for("astro:renderer")] = "@astrojs/react";

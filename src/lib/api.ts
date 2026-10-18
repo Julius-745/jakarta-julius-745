@@ -718,14 +718,15 @@ export async function fetchPublicSpeakers(
   );
 }
 
-/** GET /api/admin/events/:eventSlug/speakers — fetch all speakers for admin */
+/** GET /api/admin/events/:eventSlug/speakers or /api/admin/speakers — fetch speakers for admin */
 export async function fetchAdminSpeakers(
-  eventSlug: string,
+  eventSlug?: string,
 ): Promise<EventSpeakersResponse> {
-  return apiFetch<EventSpeakersResponse>(
-    `/api/admin/events/${encodeURIComponent(eventSlug)}/speakers`,
-    { headers: authHeaders() },
-  );
+  const endpoint =
+    eventSlug && eventSlug !== "ALL"
+      ? `/api/admin/events/${encodeURIComponent(eventSlug)}/speakers`
+      : `/api/admin/speakers`;
+  return apiFetch<EventSpeakersResponse>(endpoint, { headers: authHeaders() });
 }
 
 /** POST /api/admin/events/:eventSlug/speakers — create a speaker */

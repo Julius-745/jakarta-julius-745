@@ -164,6 +164,13 @@ export function SpeakerTabs({
 
               <SpeakerNotify />
             </section>
+
+            <SpeakerCarousel
+              eventSlug="monthly-meetup"
+              badge="Monthly Meetup Lineup"
+              title="Featured Meetup Speakers"
+              subtitle="Confirmed speakers and community technical sessions presenting at our AWS User Group Jakarta meetups."
+            />
           </div>
         )}
       </div>

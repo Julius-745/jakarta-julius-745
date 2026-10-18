@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Mic, ChevronLeft, ChevronRight, ExternalLink, Sparkles, BookOpen } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,14 +13,20 @@ import { COMMUNITY_DAY_EVENT_SLUG } from "@/components/sponsor/communityDayConfi
 
 interface SpeakerCarouselProps {
   eventSlug?: string;
+  badge?: string;
   title?: string;
   subtitle?: string;
+  className?: string;
+  containerClassName?: string;
 }
 
 export function SpeakerCarousel({
   eventSlug = COMMUNITY_DAY_EVENT_SLUG,
+  badge,
   title = "Featured Speakers & Topics",
   subtitle = "Discover the confirmed keynotes, technical deep dives, and hands-on sessions at AWS Community Day Jakarta 2026.",
+  className,
+  containerClassName,
 }: SpeakerCarouselProps) {
   const [speakers, setSpeakers] = useState<EventSpeaker[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,18 +124,35 @@ export function SpeakerCarousel({
     return null;
   }
 
+  const displayBadge =
+    badge ??
+    (eventSlug === COMMUNITY_DAY_EVENT_SLUG
+      ? "Community Day 2026 Lineup"
+      : "Featured Speakers");
+
   return (
-    <section id="speakers" className="scroll-mt-20 py-20 bg-background relative border-b border-border overflow-hidden">
+    <section
+      id="speakers"
+      className={cn(
+        "scroll-mt-20 py-20 bg-background relative border-b border-border overflow-hidden",
+        className
+      )}
+    >
       {/* Background glow effects */}
       <div className="absolute right-0 top-1/4 w-[450px] h-[450px] bg-orange-500/10 rounded-full blur-[140px] pointer-events-none" />
       <div className="absolute left-0 bottom-1/4 w-[450px] h-[450px] bg-purple-500/10 rounded-full blur-[140px] pointer-events-none" />
 
-      <div className="container max-w-6xl mx-auto px-4 md:px-6 relative z-10">
+      <div
+        className={cn(
+          "container max-w-6xl mx-auto px-4 md:px-6 relative z-10",
+          containerClassName
+        )}
+      >
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6 mb-12">
           <div className="max-w-2xl space-y-3">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-orange-500/30 bg-orange-500/10 text-orange-400 text-xs font-semibold uppercase tracking-wider">
               <Sparkles className="h-3.5 w-3.5" />
-              Community Day 2026 Lineup
+              {displayBadge}
             </span>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">
               {title}
@@ -314,3 +338,5 @@ export function SpeakerCarousel({
     </section>
   );
 }
+
+(SpeakerCarousel as unknown as Record<symbol, string>)[Symbol.for("astro:renderer")] = "@astrojs/react";
