@@ -135,6 +135,11 @@ export const PeopleList: React.FC<PeopleListProps> = ({ groups, preferContentTit
     setFailedImages((prev) => ({ ...prev, [userKey]: true }));
   };
 
+  const hasPeople = groups.some((g) => g.people && g.people.length > 0);
+  if (!hasPeople) {
+    return null;
+  }
+
   if (loading) {
     return (
       <div className="space-y-10">

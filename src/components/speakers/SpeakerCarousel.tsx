@@ -10,69 +10,6 @@ import { fetchPublicSpeakers } from "@/lib/api";
 import type { EventSpeaker } from "@/lib/types";
 import { COMMUNITY_DAY_EVENT_SLUG } from "@/components/sponsor/communityDayConfig";
 
-const DEFAULT_FEATURED_SPEAKERS: EventSpeaker[] = [
-  {
-    id: "afif-akbar-iskandar",
-    eventSlug: "community-day-2026",
-    name: "Afif Akbar Iskandar",
-    role: "AI/ML Specialist & Educator",
-    company: "NgodingAI",
-    photoUrl: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&auto=format&fit=crop&q=80",
-    talkTitle: "Prompt Engineering as Code for Production Ready AI Agents",
-    talkFormat: "Keynote",
-    topicImageUrl: "https://images.unsplash.com/photo-1677442136019-21780efad99a?w=800&auto=format&fit=crop&q=80",
-    bio: "AI enthusiast and founder of NgodingAI, passionate about making machine learning and generative AI accessible and practical.",
-    socialUrl: "https://www.linkedin.com/in/afifai/",
-    isActive: true,
-    displayOrder: 1,
-  },
-  {
-    id: "petra-novandi-barus",
-    eventSlug: "community-day-2026",
-    name: "Petra Novandi Barus",
-    role: "Lead Developer Advocate",
-    company: "Amazon Web Services",
-    photoUrl: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=500&auto=format&fit=crop&q=80",
-    talkTitle: "Architecting Serverless Microservices at Massive Scale",
-    talkFormat: "Technical Session",
-    topicImageUrl: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=80",
-    bio: "Veteran cloud builder with over 15 years of experience designing high-scale distributed systems and developer tooling.",
-    socialUrl: "https://www.linkedin.com/in/petranovandi/",
-    isActive: true,
-    displayOrder: 2,
-  },
-  {
-    id: "deisya-nur-aisyah",
-    eventSlug: "community-day-2026",
-    name: "Deisya Nur Aisyah",
-    role: "Principal Cloud Architect",
-    company: "CloudScale Indonesia",
-    photoUrl: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=500&auto=format&fit=crop&q=80",
-    talkTitle: "Zero-Trust Cloud Security Architecture with AWS IAM & KMS",
-    talkFormat: "Deep Dive",
-    topicImageUrl: "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80",
-    bio: "Cloud security strategist helping enterprises modernize and fortify mission-critical workloads in highly regulated industries.",
-    socialUrl: "https://www.linkedin.com/company/aws-user-group-indonesia/",
-    isActive: true,
-    displayOrder: 3,
-  },
-  {
-    id: "muhammad-abdul-aziz",
-    eventSlug: "community-day-2026",
-    name: "Muhammad Abdul Aziz",
-    role: "Staff DevOps Engineer",
-    company: "FinTech Core",
-    photoUrl: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=500&auto=format&fit=crop&q=80",
-    talkTitle: "Automating Multi-Region Kubernetes Deployments with EKS & Karpenter",
-    talkFormat: "Workshop",
-    topicImageUrl: "https://images.unsplash.com/photo-1667372393119-3d4c48d07fc9?w=800&auto=format&fit=crop&q=80",
-    bio: "Specializes in container orchestration, infrastructure as code, and auto-scaling cost optimization on AWS.",
-    socialUrl: "https://github.com/awsugid",
-    isActive: true,
-    displayOrder: 4,
-  },
-];
-
 interface SpeakerCarouselProps {
   eventSlug?: string;
   title?: string;
@@ -84,7 +21,8 @@ export function SpeakerCarousel({
   title = "Featured Speakers & Topics",
   subtitle = "Discover the confirmed keynotes, technical deep dives, and hands-on sessions at AWS Community Day Jakarta 2026.",
 }: SpeakerCarouselProps) {
-  const [speakers, setSpeakers] = useState<EventSpeaker[]>(DEFAULT_FEATURED_SPEAKERS);
+  const [speakers, setSpeakers] = useState<EventSpeaker[]>([]);
+  const [loading, setLoading] = useState(true);
   const [cardsPerView, setCardsPerView] = useState(3);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
@@ -94,12 +32,19 @@ export function SpeakerCarousel({
     let cancelled = false;
     async function load() {
       try {
+        setLoading(true);
         const data = await fetchPublicSpeakers(eventSlug);
-        if (!cancelled && data.speakers && data.speakers.length > 0) {
-          setSpeakers(data.speakers);
+        if (!cancelled) {
+          setSpeakers(data.speakers || []);
         }
       } catch {
-        // Retain DEFAULT_FEATURED_SPEAKERS on connection error
+        if (!cancelled) {
+          setSpeakers([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
     load();
@@ -167,6 +112,10 @@ export function SpeakerCarousel({
     }
     touchStartX.current = null;
   };
+
+  if (loading || speakers.length === 0) {
+    return null;
+  }
 
   return (
     <section id="speakers" className="scroll-mt-20 py-20 bg-background relative border-b border-border overflow-hidden">
