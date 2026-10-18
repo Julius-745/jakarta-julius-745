@@ -38,7 +38,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -102,13 +104,19 @@ export const KNOWN_EVENTS: EventOption[] = [
   },
   {
     slug: "monthly-meetup-july-2026",
-    name: "July 2026 Meetup",
+    name: "July 2026 Meetup (with Confluent)",
     category: "Monthly Meetup",
     badge: "Jul 2026",
   },
   {
+    slug: "openclaw-meetup",
+    name: "June 2026 Meetup (Openclaw Edition)",
+    category: "Monthly Meetup",
+    badge: "Jun 2026",
+  },
+  {
     slug: "monthly-meetup-june-2026",
-    name: "June 2026 Meetup",
+    name: "June 2026 Meetup (monthly-meetup-june-2026)",
     category: "Monthly Meetup",
     badge: "Jun 2026",
   },
@@ -119,9 +127,16 @@ export const KNOWN_EVENTS: EventOption[] = [
     badge: "Apr 2026",
   },
   {
-    slug: "kiro-night-bukber",
-    name: "Kiro Night Meetup",
+    slug: "kiro-night",
+    name: "March 2026 Meetup (Kiro Night Bukber)",
     category: "Monthly Meetup",
+    badge: "Mar 2026",
+  },
+  {
+    slug: "kiro-night-bukber",
+    name: "March 2026 Meetup (kiro-night-bukber)",
+    category: "Monthly Meetup",
+    badge: "Mar 2026",
   },
 
   // Workshops
@@ -279,10 +294,14 @@ export function SpeakerDirectoryManager() {
   // Open Add Dialog
   const handleOpenAdd = () => {
     setEditingSpeaker(null);
-    const defaultSlug =
-      activeQuerySlug && activeQuerySlug !== "ALL" && activeQuerySlug !== "CUSTOM"
-        ? activeQuerySlug
-        : COMMUNITY_DAY_EVENT_SLUG;
+    let defaultSlug = COMMUNITY_DAY_EVENT_SLUG;
+    if (selectedEventSlug && selectedEventSlug !== "ALL" && selectedEventSlug !== "CUSTOM") {
+      defaultSlug = selectedEventSlug;
+    } else if (selectedCategory === "Monthly Meetup") {
+      defaultSlug = "monthly-meetup";
+    } else if (selectedCategory === "Workshop") {
+      defaultSlug = "voice-ai-agents-workshop-may-2026";
+    }
     setFormData({
       ...INITIAL_FORM,
       eventSlug: defaultSlug,
@@ -361,7 +380,17 @@ export function SpeakerDirectoryManager() {
           isActive: formData.isActive,
         };
         const created = await createAdminSpeaker(targetSlug, payload);
-        setSpeakers((prev) => [...prev, created]);
+        setSpeakers((prev) => [
+          created,
+          ...prev.filter((s) => !(s.id === created.id && s.eventSlug === created.eventSlug)),
+        ]);
+        const meta = getEventCategoryMeta(targetSlug);
+        if (selectedCategory !== "ALL" && selectedCategory !== meta.category) {
+          setSelectedCategory(meta.category);
+        }
+        if (selectedEventSlug !== "ALL" && selectedEventSlug !== targetSlug) {
+          setSelectedEventSlug(targetSlug);
+        }
       }
       setDialogOpen(false);
     } catch (err: any) {
@@ -467,7 +496,7 @@ export function SpeakerDirectoryManager() {
             variant={selectedCategory === "Conference" ? "default" : "outline"}
             onClick={() => {
               setSelectedCategory("Conference");
-              setSelectedEventSlug("community-day-2026");
+              setSelectedEventSlug("ALL");
             }}
             className="rounded-full text-xs font-semibold gap-1.5 cursor-pointer"
           >
@@ -481,7 +510,7 @@ export function SpeakerDirectoryManager() {
             variant={selectedCategory === "Monthly Meetup" ? "default" : "outline"}
             onClick={() => {
               setSelectedCategory("Monthly Meetup");
-              setSelectedEventSlug("monthly-meetup");
+              setSelectedEventSlug("ALL");
             }}
             className="rounded-full text-xs font-semibold gap-1.5 cursor-pointer"
           >
@@ -495,7 +524,7 @@ export function SpeakerDirectoryManager() {
             variant={selectedCategory === "Workshop" ? "default" : "outline"}
             onClick={() => {
               setSelectedCategory("Workshop");
-              setSelectedEventSlug("voice-ai-agents-workshop-may-2026");
+              setSelectedEventSlug("ALL");
             }}
             className="rounded-full text-xs font-semibold gap-1.5 cursor-pointer"
           >
@@ -520,7 +549,17 @@ export function SpeakerDirectoryManager() {
               <SelectValue placeholder="Select Event" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="ALL">🌐 All Events in Category</SelectItem>
+              <SelectItem value="ALL">
+                {selectedCategory === "ALL"
+                  ? "🌐 All Events"
+                  : selectedCategory === "Monthly Meetup"
+                  ? "🌐 All Monthly Meetups"
+                  : selectedCategory === "Conference"
+                  ? "🌐 All Conferences"
+                  : selectedCategory === "Workshop"
+                  ? "🌐 All Workshops"
+                  : "🌐 All Events in Category"}
+              </SelectItem>
               {availableEvents.map((evt) => (
                 <SelectItem key={evt.slug} value={evt.slug}>
                   {evt.name} {evt.badge && `(${evt.badge})`}
@@ -861,34 +900,74 @@ export function SpeakerDirectoryManager() {
             )}
 
             {/* Event Category & Slug Assignment */}
-            <div className="p-3.5 rounded-xl border border-border/80 bg-muted/30 space-y-2">
-              <Label htmlFor="sp-event" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Target Event & Category *
-              </Label>
-              {!formCustomSlug ? (
-                <div className="flex items-center gap-2">
+            <div className="p-3.5 rounded-xl border border-border/80 bg-muted/30 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sp-event" className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Target Event *
+                </Label>
+                {formData.eventSlug && (
+                  <Badge variant="outline" className={cn("text-[11px]", getEventCategoryMeta(formData.eventSlug).color)}>
+                    {getEventCategoryMeta(formData.eventSlug).category} · {formData.eventSlug}
+                  </Badge>
+                )}
+              </div>
+
+              {editingSpeaker ? (
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-background border border-border/80">
+                  <div className="space-y-0.5">
+                    <p className="text-sm font-semibold text-foreground">
+                      {getEventCategoryMeta(editingSpeaker.eventSlug).label}
+                    </p>
+                    <p className="text-xs text-muted-foreground font-mono">
+                      slug: {editingSpeaker.eventSlug}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    Event Locked on Edit
+                  </Badge>
+                </div>
+              ) : !formCustomSlug ? (
+                <div className="space-y-2">
                   <Select
                     value={formData.eventSlug}
                     onValueChange={(val) => {
                       if (val === "CUSTOM") {
                         setFormCustomSlug(true);
+                        setFormData({ ...formData, eventSlug: "" });
                       } else {
                         setFormData({ ...formData, eventSlug: val });
                       }
                     }}
                   >
                     <SelectTrigger id="sp-event" className="bg-background">
-                      <SelectValue placeholder="Choose Event" />
+                      <SelectValue placeholder="Choose Event for this Speaker" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="community-day-2026">🌟 AWS Community Day Jakarta 2026</SelectItem>
-                      <SelectItem value="monthly-meetup">📅 Monthly Meetups (General / Upcoming)</SelectItem>
-                      <SelectItem value="aws-ug-jakarta-redis-october-2026">📅 October 2026 Meetup (with Redis)</SelectItem>
-                      <SelectItem value="monthly-meetup-july-2026">📅 July 2026 Meetup</SelectItem>
-                      <SelectItem value="monthly-meetup-june-2026">📅 June 2026 Meetup</SelectItem>
-                      <SelectItem value="monthly-meetup-april-2026">📅 April 2026 Meetup</SelectItem>
-                      <SelectItem value="voice-ai-agents-workshop-may-2026">🛠️ Voice AI Agents Workshop</SelectItem>
-                      <SelectItem value="CUSTOM">✏️ Custom Event Slug...</SelectItem>
+                    <SelectContent className="max-h-[320px]">
+                      <SelectGroup>
+                        <SelectLabel className="text-xs font-bold text-orange-400">🌟 Community Day & Conferences</SelectLabel>
+                        <SelectItem value="community-day-2026">AWS Community Day Jakarta 2026</SelectItem>
+                        <SelectItem value="community-day-2025">AWS Community Day Jakarta 2025</SelectItem>
+                        <SelectItem value="reinvent-recap-2025">AWS re:Invent 2025 Recap</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel className="text-xs font-bold text-sky-400">📅 Monthly Meetups</SelectLabel>
+                        <SelectItem value="monthly-meetup">Monthly Meetup (Global / General)</SelectItem>
+                        <SelectItem value="aws-ug-jakarta-redis-october-2026">October 2026 Meetup (with Redis)</SelectItem>
+                        <SelectItem value="monthly-meetup-july-2026">July 2026 Meetup (with Confluent)</SelectItem>
+                        <SelectItem value="openclaw-meetup">June 2026 Meetup (Openclaw Edition)</SelectItem>
+                        <SelectItem value="monthly-meetup-june-2026">June 2026 Meetup (monthly-meetup-june-2026)</SelectItem>
+                        <SelectItem value="monthly-meetup-april-2026">April 2026 Meetup</SelectItem>
+                        <SelectItem value="kiro-night">March 2026 Meetup (Kiro Night Bukber)</SelectItem>
+                        <SelectItem value="kiro-night-bukber">March 2026 Meetup (kiro-night-bukber)</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel className="text-xs font-bold text-purple-400">🛠️ Workshops</SelectLabel>
+                        <SelectItem value="voice-ai-agents-workshop-may-2026">Voice AI Agents Hands-On Workshop</SelectItem>
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel className="text-xs font-bold text-muted-foreground">✏️ Other</SelectLabel>
+                        <SelectItem value="CUSTOM">Custom Event Slug...</SelectItem>
+                      </SelectGroup>
                     </SelectContent>
                   </Select>
                 </div>
@@ -898,7 +977,7 @@ export function SpeakerDirectoryManager() {
                     <Input
                       placeholder="e.g. monthly-meetup-november-2026"
                       value={formData.eventSlug}
-                      onChange={(e) => setFormData({ ...formData, eventSlug: e.target.value })}
+                      onChange={(e) => setFormData({ ...formData, eventSlug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, "-") })}
                       required
                       className="bg-background"
                     />
@@ -906,12 +985,18 @@ export function SpeakerDirectoryManager() {
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => setFormCustomSlug(false)}
+                      onClick={() => {
+                        setFormCustomSlug(false);
+                        setFormData({ ...formData, eventSlug: COMMUNITY_DAY_EVENT_SLUG });
+                      }}
                       className="text-xs shrink-0 cursor-pointer"
                     >
                       Use Presets
                     </Button>
                   </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Enter the URL slug for this event (alphanumeric, dashes, lowercase).
+                  </p>
                 </div>
               )}
             </div>
