@@ -525,6 +525,7 @@ export interface EventSpeaker {
   photoUrl: string;
   talkTitle: string;
   talkFormat?: string | null;
+  topicImageUrl?: string | null;
   bio?: string | null;
   socialUrl?: string | null;
   isActive: boolean;
@@ -541,6 +542,7 @@ export interface EventSpeakerCreate {
   photoUrl: string;
   talkTitle: string;
   talkFormat?: string | null;
+  topicImageUrl?: string | null;
   bio?: string | null;
   socialUrl?: string | null;
   isActive?: boolean;
@@ -554,6 +556,7 @@ export interface EventSpeakerUpdate {
   photoUrl: string;
   talkTitle: string;
   talkFormat?: string | null;
+  topicImageUrl?: string | null;
   bio?: string | null;
   socialUrl?: string | null;
   isActive: boolean;

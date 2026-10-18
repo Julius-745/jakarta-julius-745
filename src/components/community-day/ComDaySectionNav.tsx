@@ -31,10 +31,11 @@ const SECTION_ITEMS: SectionItem[] = [
   { id: "overview", label: "Overview", icon: Compass },
   { id: "tickets", label: "Get Tickets", icon: Ticket, badge: "Registration" },
   { id: "agenda", label: "Schedule", icon: Calendar },
+  { id: "speakers", label: "Speakers", icon: Mic },
   { id: "sponsors", label: "Sponsors", icon: Handshake },
   { id: "volunteers", label: "Volunteers", icon: Heart },
   { id: "team", label: "Team & Organizers", icon: Users },
-  { id: "cfp", label: "Speakers", icon: Mic },
+  { id: "cfp", label: "Call for Speakers", icon: Presentation, badge: "CFP" },
   { id: "faq", label: "FAQ", icon: HelpCircle },
 ];
 

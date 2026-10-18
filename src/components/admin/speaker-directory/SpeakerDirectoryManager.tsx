@@ -61,6 +61,7 @@ interface SpeakerFormData {
   role: string;
   company: string;
   photoUrl: string;
+  topicImageUrl: string;
   talkTitle: string;
   talkFormat: string;
   bio: string;
@@ -73,6 +74,7 @@ const INITIAL_FORM: SpeakerFormData = {
   role: "",
   company: "",
   photoUrl: "",
+  topicImageUrl: "",
   talkTitle: "",
   talkFormat: "Keynote",
   bio: "",
@@ -164,6 +166,7 @@ export function SpeakerDirectoryManager() {
       role: speaker.role,
       company: speaker.company || "",
       photoUrl: speaker.photoUrl,
+      topicImageUrl: speaker.topicImageUrl || "",
       talkTitle: speaker.talkTitle,
       talkFormat: speaker.talkFormat || "Keynote",
       bio: speaker.bio || "",
@@ -191,6 +194,7 @@ export function SpeakerDirectoryManager() {
           role: formData.role.trim(),
           company: formData.company.trim() || null,
           photoUrl: formData.photoUrl.trim(),
+          topicImageUrl: formData.topicImageUrl.trim() || null,
           talkTitle: formData.talkTitle.trim(),
           talkFormat: formData.talkFormat.trim() || null,
           bio: formData.bio.trim() || null,
@@ -207,6 +211,7 @@ export function SpeakerDirectoryManager() {
           role: formData.role.trim(),
           company: formData.company.trim() || null,
           photoUrl: formData.photoUrl.trim(),
+          topicImageUrl: formData.topicImageUrl.trim() || null,
           talkTitle: formData.talkTitle.trim(),
           talkFormat: formData.talkFormat.trim() || null,
           bio: formData.bio.trim() || null,
@@ -237,6 +242,7 @@ export function SpeakerDirectoryManager() {
         role: speaker.role,
         company: speaker.company,
         photoUrl: speaker.photoUrl,
+        topicImageUrl: speaker.topicImageUrl,
         talkTitle: speaker.talkTitle,
         talkFormat: speaker.talkFormat,
         bio: speaker.bio,
@@ -434,14 +440,25 @@ export function SpeakerDirectoryManager() {
                 key={speaker.id}
                 className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-muted/20 transition-colors"
               >
-                {/* Speaker Info & Avatar */}
+                {/* Speaker Info, Topic Banner & Avatar */}
                 <div className="flex items-start gap-4 min-w-0">
-                  <Avatar className="h-14 w-14 rounded-2xl border border-border shrink-0 shadow-sm">
-                    <AvatarImage src={speaker.photoUrl} alt={speaker.name} className="object-cover" />
-                    <AvatarFallback className="rounded-2xl bg-primary/10 text-primary font-bold">
-                      {speaker.name.slice(0, 2).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {speaker.topicImageUrl && (
+                      <div className="hidden sm:block w-20 aspect-[16/9] rounded-xl overflow-hidden border border-border bg-muted shrink-0">
+                        <img
+                          src={speaker.topicImageUrl}
+                          alt={speaker.talkTitle}
+                          className="h-full w-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <Avatar className="h-12 w-12 rounded-xl border border-border shrink-0 shadow-sm">
+                      <AvatarImage src={speaker.photoUrl} alt={speaker.name} className="object-cover" />
+                      <AvatarFallback className="rounded-xl bg-primary/10 text-primary font-bold">
+                        {speaker.name.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
 
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -612,7 +629,7 @@ export function SpeakerDirectoryManager() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="sp-photo">Photo URL *</Label>
+                <Label htmlFor="sp-photo">Profile Photo URL *</Label>
                 <Input
                   id="sp-photo"
                   placeholder="https://..."
@@ -621,6 +638,16 @@ export function SpeakerDirectoryManager() {
                   required
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="sp-topic-img">Topic / Session Banner Image URL</Label>
+              <Input
+                id="sp-topic-img"
+                placeholder="https://... (16:9 cover banner image for session topic)"
+                value={formData.topicImageUrl}
+                onChange={(e) => setFormData({ ...formData, topicImageUrl: e.target.value })}
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
