@@ -20,7 +20,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getInitials } from "@/lib/utils";
 import type { PersonItem, PeopleGroup } from "@/lib/types";
 
 export type { PersonItem, PeopleGroup };
@@ -349,12 +348,8 @@ function PeopleGroupCarousel({
                           className="w-24 h-24 rounded-full border-2 border-background object-cover"
                         />
                       ) : (
-                        <div className="w-24 h-24 rounded-full bg-card border-2 border-background flex items-center justify-center text-foreground font-bold text-xl">
-                          {displayName !== "Community Member" ? (
-                            getInitials(displayName)
-                          ) : (
-                            <User className="w-10 h-10 text-muted-foreground" />
-                          )}
+                        <div className="w-24 h-24 rounded-full bg-muted/70 border-2 border-background flex items-center justify-center text-muted-foreground shadow-inner">
+                          <User className="w-12 h-12 text-muted-foreground/70" aria-hidden="true" />
                         </div>
                       )}
                     </div>
