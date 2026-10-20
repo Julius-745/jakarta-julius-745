@@ -343,6 +343,8 @@ export interface SponsorPackage {
   isUnlocked: boolean;
   /** Visual ad placement modal preview image URL. */
   imageUrl?: string | null;
+  /** Optional deadline date (YYYY-MM-DD) for physical/media cutoff. */
+  deadlineDate?: string | null;
   displayOrder: number;
   updatedAt: string;
 }
@@ -400,6 +402,8 @@ export interface SponsorPackageUpdate {
   isUnlocked: boolean;
   /** Visual ad placement modal preview image URL. */
   imageUrl?: string | null;
+  /** Optional deadline date (YYYY-MM-DD); null clears. */
+  deadlineDate?: string | null;
 }
 
 /** Body for POST /api/admin/events/:eventSlug/sponsor-groups. */
@@ -417,6 +421,8 @@ export interface SponsorPackageCreate {
   priceUsd?: number | null;
   /** Visual ad placement modal preview image URL. */
   imageUrl?: string | null;
+  /** Optional deadline date (YYYY-MM-DD). */
+  deadlineDate?: string | null;
 }
 
 /** Body for PUT /api/admin/events/:eventSlug/sponsor-packages. */
