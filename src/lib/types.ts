@@ -597,4 +597,189 @@ export interface AdminUserSearchResponse {
   users: AdminUserSearchResult[];
 }
 
+// =============================================================================
+// Sessionize Integration Types
+// =============================================================================
+
+export interface SessionizeLink {
+  title?: string | null;
+  url: string;
+  linkType?: string | null;
+}
+
+export interface EnrichedSpeakerSession {
+  id: string;
+  title: string;
+  description?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  room?: string | null;
+  roomId?: number | null;
+  status?: string | null;
+  isServiceSession: boolean;
+  isConfirmed?: boolean | null;
+}
+
+export interface EnrichedSpeaker {
+  id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  fullName: string;
+  bio?: string | null;
+  tagLine?: string | null;
+  profilePicture?: string | null;
+  company?: string | null;
+  jobTitle?: string | null;
+  positionName?: string | null;
+  linkedinUrl?: string | null;
+  isTopSpeaker: boolean;
+  links: SessionizeLink[];
+  sessions: EnrichedSpeakerSession[];
+}
+
+export interface EnrichedSessionSpeaker {
+  id: string;
+  name: string;
+  tagLine?: string | null;
+  bio?: string | null;
+  profilePicture?: string | null;
+  company?: string | null;
+  jobTitle?: string | null;
+  linkedinUrl?: string | null;
+}
+
+export interface SessionizeCategoryItem {
+  id: number;
+  name: string;
+}
+
+export interface SessionizeCategory {
+  id: number;
+  name: string;
+  categoryItems: SessionizeCategoryItem[];
+  sort?: number | null;
+}
+
+export interface EnrichedSession {
+  id: string;
+  title: string;
+  description?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  room?: string | null;
+  roomId?: number | null;
+  status?: string | null;
+  isServiceSession: boolean;
+  isPlenumSession: boolean;
+  isConfirmed?: boolean | null;
+  speakers: EnrichedSessionSpeaker[];
+  categories: SessionizeCategory[];
+}
+
+export interface SessionizeMetadata {
+  rooms: string[];
+  jobTitles: string[];
+  companies: string[];
+  totalSpeakers: number;
+  totalSessions: number;
+  cachedAt: string;
+}
+
+export interface SessionizeDataResponse {
+  speakers: EnrichedSpeaker[];
+  sessions: EnrichedSession[];
+  metadata: SessionizeMetadata;
+}
+
+// =============================================================================
+// Event Schedule Types
+// =============================================================================
+
+export interface EventScheduleItem {
+  id: string;
+  eventSlug: string;
+  sessionId?: string | null;
+  title: string;
+  description?: string | null;
+  speakerId?: string | null;
+  speakerName?: string | null;
+  speakerRole?: string | null;
+  speakerCompany?: string | null;
+  speakerAvatar?: string | null;
+  speakerSocialUrl?: string | null;
+  room?: string | null;
+  track?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  sessionType?: string | null;
+  isServiceSession: boolean;
+  isActive: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateScheduleItem {
+  sessionId?: string | null;
+  title: string;
+  description?: string | null;
+  speakerId?: string | null;
+  speakerName?: string | null;
+  speakerRole?: string | null;
+  speakerCompany?: string | null;
+  speakerAvatar?: string | null;
+  speakerSocialUrl?: string | null;
+  room?: string | null;
+  track?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  sessionType?: string | null;
+  isServiceSession?: boolean;
+  isActive?: boolean;
+  displayOrder?: number;
+}
+
+export interface UpdateScheduleItem {
+  sessionId?: string | null;
+  title?: string;
+  description?: string | null;
+  speakerId?: string | null;
+  speakerName?: string | null;
+  speakerRole?: string | null;
+  speakerCompany?: string | null;
+  speakerAvatar?: string | null;
+  speakerSocialUrl?: string | null;
+  room?: string | null;
+  track?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  sessionType?: string | null;
+  isServiceSession?: boolean;
+  isActive?: boolean;
+  displayOrder?: number;
+}
+
+export interface ScheduleOrderItem {
+  id: string;
+  displayOrder: number;
+}
+
+export interface SyncSessionizeRequest {
+  sessionIds?: string[];
+  overwrite?: boolean;
+  fresh?: boolean;
+}
+
+export interface SyncSessionizeResponse {
+  imported: number;
+  updated: number;
+  total: number;
+}
+
+export interface EventScheduleResponse {
+  eventSlug: string;
+  schedule: EventScheduleItem[];
+}
+
+
 
